@@ -71,9 +71,23 @@ if ($user = $result->fetch_assoc()) {
         $mail->Port       = 587;
 
         $mail->setFrom($mail->Username, 'Ambativasi Support');
+        $mail->addReplyTo($mail->Username, 'Ambativasi Support');
         $mail->addAddress($email, $user['username']);
 
+        $mail->CharSet = 'UTF-8';
+        $mail->Encoding = 'base64';
         $mail->isHTML(true);
+        $mail->AltBody = 'Halo ' . $user['username'] . ',
+
+Kami menerima permintaan untuk mengatur ulang kata sandi akun Ambativasi Anda.
+
+Buka link berikut untuk membuat kata sandi baru (token berlaku 30 menit):
+' . $directAppLink . '
+
+Jika Anda tidak meminta ini, abaikan email ini.
+
+Salam hangat,
+Tim Ambativasi';
         $mail->Subject = 'Instruksi Pemulihan Kata Sandi - Ambativasi';
         $mail->Body    = '
             <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
