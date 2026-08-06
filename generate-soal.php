@@ -18,6 +18,7 @@ if (!$input || !isset($input["sumberData"])) {
 $sumberData = trim($input["sumberData"]);
 $jumlahSoal = isset($input["jumlahSoal"]) ? (int)$input["jumlahSoal"] : 10;
 $bahasaSoal = isset($input["bahasaSoal"]) ? $input["bahasaSoal"] : "Indonesia";
+$ringkasanMateri = isset($input["ringkasanMateri"]) ? trim($input["ringkasanMateri"]) : "";
 
 $lowerSumber = strtolower($sumberData);
 
@@ -92,7 +93,18 @@ DEFINISI 4 KARAKTERISTIK TIPE SOAL:
 PANDUAN REFERENSI MATERI:
 - Judul Materi: {$judulMateri}
 - Subjek: {$mataPelajaran}
+";
 
+if ($ringkasanMateri !== "") {
+    $instruksiSistem .= "
+RINGKASAN ISI MATERI (WAJIB DIPATUHI):
+Seluruh butir soal HARUS dibuat berdasarkan isi ringkasan materi di bawah ini, bukan dari pengetahuan umum semata.
+Berikut ringkasannya:
+{$ringkasanMateri}
+";
+}
+
+$instruksiSistem .= "
 PANDUAN STRUKTUR JSON (GUARDRAILS):
 Output HARUS berupa JSON Array murni dari objek-objek kuis. Objek di dalamnya wajib berstruktur:
 - 'no' (integer)
