@@ -1,5 +1,5 @@
 <?php
-require_once "db.php";
+require_once "auth.php";
 
 $input = json_decode(file_get_contents("php://input"), true);
 $email = isset($input['email']) ? trim($input['email']) : '';
@@ -20,8 +20,15 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($user = $result->fetch_assoc()) {
-    // Memeriksa password (hash BCRYPT atau plain text)
-    if (password_verify($password, $user['password']) || $password === $user['password']) {
+    // Memeriksa password (hash BCRYPT, dengan migrasi otomatis untuk password lama)
+    if (verify_password_and_migrate($password, $user['password'], (int)$user['id'])) {
+        // Buat token sesi baru (dipakai aplikasi untuk semua request berikutnya)
+        $newToken = bin2hex(random_bytes(32));
+        $tokenStmt = $conn->prepare("UPDATE users SET auth_token = ? WHERE id = ?");
+        $tokenStmt->bind_param("si", $newToken, $user['id']);
+        $tokenStmt->execute();
+        $tokenStmt->close();
+
         echo json_encode([
             "success" => true,
             "status" => "success",
@@ -30,7 +37,8 @@ if ($user = $result->fetch_assoc()) {
                 "id" => $user['id'],
                 "username" => $user['username'],
                 "email" => $user['email'],
-                "profile_image" => $user['profile_image']
+                "profile_image" => $user['profile_image'],
+                "auth_token" => $newToken
             ]
         ]);
     } else {

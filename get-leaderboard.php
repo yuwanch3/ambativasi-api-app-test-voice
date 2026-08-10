@@ -1,18 +1,20 @@
 <?php
-require_once "db.php";
+require_once "auth.php";
 
 $email = isset($_GET['email']) ? trim($_GET['email']) : '';
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
 $limit = max(1, min(100, $limit));
 
-if (empty($email)) {
+$user = resolve_user($email);
+if (!$user) {
     echo json_encode([
         "status" => "error",
         "success" => false,
-        "message" => "Email tidak boleh kosong!"
+        "message" => "Pengguna tidak ditemukan!"
     ]);
     exit();
 }
+$myEmail = $user['email'];
 
 $XP_PER_LEVEL = 500;
 
@@ -38,7 +40,7 @@ if ($result) {
             "total_xp" => $totalXp,
             "level" => (int)(floor($totalXp / $XP_PER_LEVEL) + 1)
         ];
-        if ($row['email'] === $email) {
+        if ($row['email'] === $myEmail) {
             $myEntry = $entry;
         }
         if ($i <= $limit) {

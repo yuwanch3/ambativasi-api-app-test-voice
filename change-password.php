@@ -1,5 +1,5 @@
 <?php
-require_once "db.php";
+require_once "auth.php";
 
 $input = json_decode(file_get_contents("php://input"), true);
 $email = isset($input['email']) ? trim($input['email']) : '';
@@ -11,16 +11,20 @@ if (empty($email) || empty($old_password) || empty($new_password)) {
     exit();
 }
 
-$stmt = $conn->prepare("SELECT password FROM users WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$result = $stmt->get_result();
+$user = resolve_user($email);
 
-if ($user = $result->fetch_assoc()) {
-    if (password_verify($old_password, $user['password']) || $old_password === $user['password']) {
+if ($user) {
+    $userId = (int)$user['id'];
+    $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $passwordRow = $result->fetch_assoc();
+
+    if ($passwordRow && verify_password_and_migrate($old_password, $passwordRow['password'], $userId)) {
         $hashed_new_password = password_hash($new_password, PASSWORD_BCRYPT);
-        $update_stmt = $conn->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE email = ?");
-        $update_stmt->bind_param("ss", $hashed_new_password, $email);
+        $update_stmt = $conn->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?");
+        $update_stmt->bind_param("si", $hashed_new_password, $userId);
 
         if ($update_stmt->execute()) {
             echo json_encode(["status" => "success", "success" => true, "message" => "Kata sandi berhasil diperbarui!"]);
@@ -31,10 +35,10 @@ if ($user = $result->fetch_assoc()) {
     } else {
         echo json_encode(["status" => "error", "success" => false, "message" => "Kata sandi lama tidak sesuai!"]);
     }
+    $stmt->close();
 } else {
     echo json_encode(["status" => "error", "success" => false, "message" => "Pengguna tidak ditemukan!"]);
 }
 
-$stmt->close();
 $conn->close();
 ?>

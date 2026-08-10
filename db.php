@@ -42,4 +42,20 @@ $conn->query("CREATE TABLE IF NOT EXISTS user_xp (
     PRIMARY KEY (id),
     UNIQUE KEY user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+// Migrasi ringan: pastikan kolom auth_token ada di tabel users (idempotent)
+$colCheck = $conn->query("SELECT COUNT(*) AS c FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'auth_token'");
+if ($colCheck) {
+    $row = $colCheck->fetch_assoc();
+    if ($row && (int)$row['c'] === 0) {
+        $conn->query("ALTER TABLE users ADD COLUMN auth_token VARCHAR(255) DEFAULT NULL");
+    }
+}
+
+// Tabel pembatasan frekuensi permintaan reset password (anti-spam)
+$conn->query("CREATE TABLE IF NOT EXISTS password_reset_attempts (
+    email VARCHAR(100) NOT NULL,
+    last_request_at DATETIME NOT NULL,
+    PRIMARY KEY (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 ?>

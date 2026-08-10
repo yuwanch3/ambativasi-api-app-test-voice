@@ -28,6 +28,37 @@ if (empty($email)) {
     exit();
 }
 
+// ✅ RATE-LIMIT ANTI-SPAM: minimal 60 detik antar request per email
+// Berlaku untuk SEMUA email (terdaftar atau tidak), jadi tidak bisa di-bypass
+// oleh user yang belum punya token reset.
+$minWait = 60;
+$rlStmt = $conn->prepare("SELECT last_request_at FROM password_reset_attempts WHERE email = ?");
+$rlStmt->bind_param("s", $email);
+$rlStmt->execute();
+$rlRes = $rlStmt->get_result();
+$rlRow = $rlRes->fetch_assoc();
+$rlStmt->close();
+
+$lastAt = $rlRow ? strtotime($rlRow['last_request_at']) : null;
+if ($lastAt !== null) {
+    $wait = $minWait - (time() - $lastAt);
+    if ($wait > 0) {
+        echo json_encode([
+            "success" => false,
+            "status" => "error",
+            "message" => "Harap tunggu " . $wait . " detik lagi sebelum meminta email baru!"
+        ]);
+        $conn->close();
+        exit();
+    }
+}
+
+// Catat waktu request (upsert)
+$recordStmt = $conn->prepare("INSERT INTO password_reset_attempts (email, last_request_at) VALUES (?, NOW()) ON DUPLICATE KEY UPDATE last_request_at = NOW()");
+$recordStmt->bind_param("s", $email);
+$recordStmt->execute();
+$recordStmt->close();
+
 $stmt = $conn->prepare("SELECT id, username, token_expires, TIMESTAMPDIFF(SECOND, NOW(), token_expires) AS sisa_detik FROM users WHERE email = ?");
 $stmt->bind_param("s", $email);
 $stmt->execute();
@@ -56,7 +87,7 @@ if ($user = $result->fetch_assoc()) {
 
     // 💡 LINK HTTPS PERANTARA AGAR DITERIMA DENGAN AMAN OLEH GMAIL
     $encodedEmail = urlencode($email);
-    $baseUrl = env_get('BASE_URL', 'https://banked-faculty-setup.ngrok-free.dev/ambativasi-api');
+    $baseUrl = env_get('BASE_URL', 'https://ambativasi.page.gd/ambativasi-api');
     $directAppLink = $baseUrl . "/reset-redirect.php?email=" . $encodedEmail . "&token=" . urlencode($newToken);
 
     $mail = new PHPMailer(true);

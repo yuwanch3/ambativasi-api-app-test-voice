@@ -1,5 +1,5 @@
 <?php
-require_once "db.php";
+require_once "auth.php";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
@@ -27,9 +27,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
+    $user = resolve_user($email);
+    if (!$user) {
+        echo json_encode(["status" => "error", "success" => false, "message" => "Pengguna tidak ditemukan!"]);
+        exit();
+    }
+    $userId = (int)$user['id'];
+
     // Cek apakah username sudah dipakai user lain
-    $stmtCheck = $conn->prepare("SELECT id FROM users WHERE username = ? AND email != ?");
-    $stmtCheck->bind_param("ss", $newUsername, $email);
+    $stmtCheck = $conn->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
+    $stmtCheck->bind_param("si", $newUsername, $userId);
     $stmtCheck->execute();
     $resultCheck = $stmtCheck->get_result();
 
@@ -42,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmtCheck->close();
 
     // Update username di database
-    $stmt = $conn->prepare("UPDATE users SET username = ?, updated_at = NOW() WHERE email = ?");
-    $stmt->bind_param("ss", $newUsername, $email);
+    $stmt = $conn->prepare("UPDATE users SET username = ?, updated_at = NOW() WHERE id = ?");
+    $stmt->bind_param("si", $newUsername, $userId);
 
     if ($stmt->execute()) {
         echo json_encode([

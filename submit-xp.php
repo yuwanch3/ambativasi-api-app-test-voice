@@ -1,5 +1,5 @@
 <?php
-require_once "db.php";
+require_once "auth.php";
 
 $input = json_decode(file_get_contents("php://input"), true);
 $email = isset($input['email']) ? trim($input['email']) : '';
@@ -15,12 +15,9 @@ if (empty($email)) {
     exit();
 }
 
-$stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$result = $stmt->get_result();
+$user = resolve_user($email);
 
-if (!$user = $result->fetch_assoc()) {
+if (!$user) {
     echo json_encode([
         "status" => "error",
         "message" => "Pengguna tidak ditemukan!"
